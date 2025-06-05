@@ -1,0 +1,169 @@
+<html>
+  <head>
+    <title>Մաթեմատիկական Ֆունկցիաների Գրաֆիկներ</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+        background-color: #f0f0f0;
+      }
+      canvas {
+        border: 1px solid #ccc;
+        margin-top: 20px;
+        background-color: #fff; /* Ֆոնը կանաչ կլինի Canvas-ի ներսում */
+      }
+      .controls button {
+        padding: 10px 20px;
+        margin: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        border: 1px solid #007bff;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: white;
+      }
+      .controls button:hover {
+        background-color: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="controls">
+      <button id="sineBtn">Սինուս ալիք</button>
+      <button id="parabolaBtn">Պարաբոլ</button>
+      <button id="lineBtn">Ուղիղ գիծ</button>
+      <button id="circleBtn">Շրջան</button>
+    </div>
+    <canvas id="c" width="800" height="600"></canvas>
+
+    <script>
+      const C = document.getElementById("c").getContext("2d");
+      const W = C.canvas.width;
+      const H = C.canvas.height;
+      const epsilon = 5; // Գծերի ընդհանուր հաստությունը
+
+      let currentGraphType = 'sine'; // Սկզբնական գրաֆիկի տեսակը
+
+      const I = C.getImageData(0, 0, W, H);
+      drawFrame(I.data); // Նկարում ենք սկզբնական կադրը
+      C.putImageData(I, 0, 0);
+
+      // Ֆունկցիա՝ ամբողջ կադրը նկարելու համար
+      function drawFrame(D) {
+        for (let y = 0, i = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const p = getPixel(x, y);
+            D[i++] = p.r * 255;
+            D[i++] = p.g * 255;
+            D[i++] = p.b * 255;
+            D[i++] = p.a * 255;
+          }
+        }
+        C.putImageData(I, 0, 0); // Կարևոր է՝ ավելացնել այս տողը, որպեսզի նկարը թարմացվի կոճակը սեղմելիս
+      }
+
+      // Յուրաքանչյուր պիքսելի գույնը ստանալու ֆունկցիա
+      function getPixel(x, y) {
+        let fgColor; // Առաջին պլանի գույնը
+        const bgColor = backgroundPattern(x, y); // Ֆոնի գույնը
+
+        switch (currentGraphType) {
+          case 'sine':
+            fgColor = drawSineWave(x, y);
+            break;
+          case 'parabola':
+            fgColor = drawParabola(x, y, 0.002, W / 2, H / 2);
+            break;
+          case 'line':
+            // Ուղիղ գիծը կենտրոնացնում ենք էկրանի մեջտեղում
+            fgColor = aRedLine(x, y, 1, H / 2 - W / 2); // Փոփոխություն այստեղ
+            break;
+          case 'circle':
+            // Շրջանը կենտրոնացնում ենք Canvas-ի մեջտեղում, R=100
+            fgColor = aBlueCircle(x, y, W / 2, H / 2, 100);
+            break;
+          default:
+            fgColor = { r: 0, g: 0, b: 0, a: 0 }; // Թափանցիկ լռելյայն արժեք
+        }
+        return overlay(fgColor, bgColor);
+      }
+
+      // Գույները միաձուլող ֆունկցիա (overlay)
+      function overlay(p1, p2) {
+        const m = (1 - (1 - p1.a) * (1 - p2.a));
+        if (m < 0.0001) return { r: 0, g: 0, b: 0, a: 0 };
+        const a1 = p1.a / m, a2 = p2.a * (1 - a1);
+        const blend = (c1, c2) => (c1 * a1 + c2 * a2);
+        return {
+          r: blend(p1.r, p2.r),
+          g: blend(p1.g, p2.g),
+          b: blend(p1.b, p2.b),
+          a: m
+        };
+      }
+
+      // Ֆոնի նախշը կամ գույնը ստանալու ֆունկցիա
+      function backgroundPattern(x, y) {
+        // Ամբողջովին անթափանց կանաչ ֆոն
+        return { r: 0, g: 1, b: 0, a: 1.0 };
+      }
+
+      // Սինուս ալիք նկարող ֆունկցիա (կապույտ)
+      function drawSineWave(x, y) {
+        const amplitude = 50;
+        const frequency = 0.03;
+        const verticalOffset = H / 2;
+        const phase = 0;
+
+        const expectedY = amplitude * Math.sin(frequency * x + phase) + verticalOffset;
+        const isOnSineWave = Math.abs(y - expectedY) < epsilon;
+        return { r: 0.0, g: 0.0, b: 1.0, a: isOnSineWave ? 1 : 0 }; // Կապույտ սինուս ալիք
+      }
+
+      // Պարաբոլ նկարող ֆունկցիա (կարմիր)
+      function drawParabola(x, y, A, X0, Y0) {
+        const centeredX = x - X0;
+        const expectedY = A * centeredX * centeredX + Y0;
+        const isOnParabola = Math.abs(y - expectedY) < epsilon;
+        return { r: 1.0, g: 0.0, b: 0.0, a: isOnParabola ? 1 : 0 }; // Կարմիր պարաբոլ
+      }
+
+      // Ուղիղ գիծ նկարող ֆունկցիա (կարմիր)
+      function aRedLine(x, y, k, b) {
+        const onLine = (Math.abs(y - (k * x + b)) < epsilon);
+        return { r: 1.0, g: 0.0, b: 0.0, a: onLine ? 1 : 0 }; // Կարմիր ուղիղ գիծ
+      }
+
+      // Շրջան նկարող ֆունկցիա (կապույտ) - հիմա նկարում է լցված շրջան
+      function aBlueCircle(x, y, cx, cy, R) {
+        const distSq = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+        const isInsideCircle = distSq <= (R * R); // Փոփոխություն այստեղ՝ լցված շրջանի համար
+        return { r: 0.0, g: 0.0, b: 1.0, a: isInsideCircle ? 1 : 0 }; // Կապույտ լցված շրջան
+      }
+
+      // Կոճակների իրադարձությունների լսողներ
+      document.getElementById('sineBtn').addEventListener('click', () => {
+        currentGraphType = 'sine';
+        drawFrame(I.data);
+      });
+
+      document.getElementById('parabolaBtn').addEventListener('click', () => {
+        currentGraphType = 'parabola';
+        drawFrame(I.data);
+      });
+
+      document.getElementById('lineBtn').addEventListener('click', () => {
+        currentGraphType = 'line';
+        drawFrame(I.data);
+      });
+
+      document.getElementById('circleBtn').addEventListener('click', () => {
+        currentGraphType = 'circle';
+        drawFrame(I.data);
+      });
+    </script>
+  </body>
+</html>
